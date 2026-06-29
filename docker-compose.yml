@@ -1,0 +1,130 @@
+# File Import System — stack de desenvolvimento
+# Suba com: just up   |   derrube com: just down
+
+x-php: &php
+  build:
+    context: .
+    dockerfile: docker/php/Dockerfile
+    args:
+      UID: ${UID:-1000}
+      GID: ${GID:-1000}
+  image: fis-app:latest
+  restart: unless-stopped
+  working_dir: /var/www/html
+  volumes:
+    - .:/var/www/html
+  networks:
+    - fis
+
+services:
+  # Aplicação (PHP-FPM)
+  app:
+    <<: *php
+    container_name: fis-app
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # Worker de filas (importações rodam aqui, de forma assíncrona)
+  # Em desenvolvimento usamos queue:listen: ele reinicia a aplicação a cada job,
+  # então mudanças no código (processadores, jobs) passam a valer sem precisar
+  # reiniciar o worker. Em produção, prefira `queue:work` + `php artisan queue:restart`.
+  queue:
+    <<: *php
+    container_name: fis-queue
+    command: php artisan queue:listen redis --tries=3 --timeout=600
+    depends_on:
+      app:
+        condition: service_started
+      redis:
+        condition: service_healthy
+
+  # Agendador (php artisan schedule:work)
+  scheduler:
+    <<: *php
+    container_name: fis-scheduler
+    command: php artisan schedule:work
+    depends_on:
+      app:
+        condition: service_started
+
+  # Servidor web
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: fis-nginx
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-8000}:80"
+    volumes:
+      - .:/var/www/html
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      app:
+        condition: service_started
+    networks:
+      - fis
+
+  # Banco de dados
+  mysql:
+    image: mysql:8.4
+    container_name: fis-mysql
+    restart: unless-stopped
+    ports:
+      - "${FORWARD_DB_PORT:-3306}:3306"
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE:-file_import_system}
+      MYSQL_USER: ${DB_USERNAME:-fis}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-secret}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-root}
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "root", "-p${DB_ROOT_PASSWORD:-root}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    networks:
+      - fis
+
+  # Cache / Sessão / Filas
+  redis:
+    image: redis:7-alpine
+    container_name: fis-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    ports:
+      - "${FORWARD_REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    networks:
+      - fis
+
+  # Build de assets (Vite) — apenas em desenvolvimento
+  node:
+    image: node:22-alpine
+    container_name: fis-node
+    working_dir: /var/www/html
+    command: sh -c "npm install && npm run dev -- --host"
+    ports:
+      - "${VITE_PORT:-5173}:5173"
+    volumes:
+      - .:/var/www/html
+    networks:
+      - fis
+    profiles:
+      - dev
+
+volumes:
+  mysql-data:
+  redis-data:
+
+networks:
+  fis:
+    driver: bridge

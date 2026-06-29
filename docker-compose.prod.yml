@@ -1,0 +1,38 @@
+# Override de PRODUÇÃO.
+#   Uso:  docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#   ou:   just up-prod
+#
+# Premissa: o código é implantado no servidor (ex.: git pull) e montado nos
+# containers — a mesma imagem do dev. Para uma imagem 100% autocontida
+# (CI/registry/Kubernetes), peça o Dockerfile de produção multi-stage.
+
+services:
+  app:
+    restart: always
+    volumes:
+      - ./docker/php/php.prod.ini:/usr/local/etc/php/conf.d/zz-app.ini:ro
+
+  # Em produção usamos queue:work (perfomático). O código novo é aplicado no
+  # deploy via `php artisan queue:restart` (incluso no `just deploy`).
+  queue:
+    restart: always
+    command: php artisan queue:work redis --sleep=3 --tries=3 --max-time=3600 --max-jobs=1000
+    volumes:
+      - ./docker/php/php.prod.ini:/usr/local/etc/php/conf.d/zz-app.ini:ro
+
+  scheduler:
+    restart: always
+    volumes:
+      - ./docker/php/php.prod.ini:/usr/local/etc/php/conf.d/zz-app.ini:ro
+
+  nginx:
+    restart: always
+
+  mysql:
+    restart: always
+    # Não publica a porta do banco fora da rede interna do Docker.
+    ports: !override []
+
+  redis:
+    restart: always
+    ports: !override []
