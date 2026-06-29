@@ -17,6 +17,7 @@ use Src\Domain\Import\FileProcessor;
 use Src\Domain\Import\FileType;
 use Src\Infrastructure\Persistence\Models\FileImport;
 use Src\Infrastructure\Persistence\Models\Program;
+use Src\Infrastructure\Persistence\Models\User;
 
 class Programs extends Page
 {
@@ -33,11 +34,24 @@ class Programs extends Page
     /**
      * Programas (boxes) ativos exibidos ao usuário.
      *
+     * Administradores enxergam todos os programas; usuários comuns, apenas os
+     * que o admin liberou para eles.
+     *
      * @return Collection<int, Program>
      */
     public function getPrograms(): Collection
     {
-        return Program::query()
+        $user = Auth::user();
+
+        if (! $user instanceof User) {
+            return new Collection();
+        }
+
+        $query = $user->isAdmin()
+            ? Program::query()
+            : $user->programs();
+
+        return $query
             ->where('is_active', true)
             ->orderBy('name')
             ->get();
@@ -113,6 +127,18 @@ class Programs extends Page
             })
             ->action(function (array $arguments, array $data): void {
                 $program = Program::query()->findOrFail($arguments['program']);
+
+                // Defesa adicional: além das boxes já virem filtradas, garante
+                // que o usuário não importe para um programa sem permissão.
+                $user = Auth::user();
+                if (! $user instanceof User || ! $user->canAccessProgram($program)) {
+                    Notification::make()
+                        ->title('Você não tem permissão para importar neste programa.')
+                        ->danger()
+                        ->send();
+
+                    return;
+                }
 
                 $types = $this->acceptedTypesFor($arguments);
                 $type = count($types) === 1

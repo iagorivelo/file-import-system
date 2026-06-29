@@ -70,6 +70,15 @@ class UserResource extends Resource
             Toggle::make('is_active')
                 ->label('Conta ativa')
                 ->default(true),
+            Select::make('programs')
+                ->label('Programas liberados')
+                ->relationship('programs', 'name')
+                ->multiple()
+                ->preload()
+                ->searchable()
+                ->native(false)
+                ->helperText('Programas que este usuário poderá ver e importar no painel. '
+                    .'Administradores têm acesso a todos, independentemente desta seleção.'),
             TextInput::make('password')
                 ->label('Senha')
                 ->password()

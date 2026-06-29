@@ -7,6 +7,7 @@ namespace Src\Infrastructure\Persistence\Models;
 use Database\Factories\ProgramFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Src\Domain\Import\FileProcessor;
@@ -59,6 +60,16 @@ class Program extends Model
     public function fileImports(): HasMany
     {
         return $this->hasMany(FileImport::class);
+    }
+
+    /**
+     * Usuários autorizados a ver/importar este programa no painel /app.
+     *
+     * @return BelongsToMany<User, $this>
+     */
+    public function users(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class);
     }
 
     protected static function newFactory(): ProgramFactory

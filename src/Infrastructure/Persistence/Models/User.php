@@ -8,6 +8,7 @@ use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -80,6 +81,29 @@ class User extends Authenticatable implements FilamentUser
     public function isAdmin(): bool
     {
         return $this->role->isAdmin();
+    }
+
+    /**
+     * Programas que o admin liberou para este usuário acessar no painel /app.
+     *
+     * @return BelongsToMany<Program, $this>
+     */
+    public function programs(): BelongsToMany
+    {
+        return $this->belongsToMany(Program::class);
+    }
+
+    /**
+     * Indica se o usuário pode ver/importar um programa. Administradores têm
+     * acesso a todos; usuários comuns, apenas aos programas vinculados a eles.
+     */
+    public function canAccessProgram(Program $program): bool
+    {
+        if ($this->isAdmin()) {
+            return true;
+        }
+
+        return $this->programs()->whereKey($program->getKey())->exists();
     }
 
     /**

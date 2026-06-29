@@ -23,7 +23,7 @@ class DatabaseSeeder extends Seeder
             ],
         );
 
-        User::query()->updateOrCreate(
+        $commonUser = User::query()->updateOrCreate(
             ['email' => 'usuario@fileimport.local'],
             [
                 'name' => 'Usuário Comum',
@@ -34,7 +34,7 @@ class DatabaseSeeder extends Seeder
             ],
         );
 
-        Program::query()->updateOrCreate(
+        $program = Program::query()->updateOrCreate(
             ['name' => 'Teste'],
             [
                 'color' => '#4b6043',
@@ -42,5 +42,8 @@ class DatabaseSeeder extends Seeder
                 'is_active' => true,
             ],
         );
+
+        // Libera o programa "Teste" para o usuário comum de exemplo.
+        $program->users()->syncWithoutDetaching([$commonUser->getKey()]);
     }
 }
