@@ -21,7 +21,8 @@ it('UserRole rotula e identifica administrador', function () {
 it('FileType resolve por extensão e rejeita tipos inválidos', function () {
     expect(FileType::fromExtension('.CSV'))->toBe(FileType::Csv)
         ->and(FileType::fromExtension('txt'))->toBe(FileType::Txt)
-        ->and(FileType::allowedExtensions())->toBe(['txt', 'csv']);
+        ->and(FileType::fromExtension('XLSX'))->toBe(FileType::Xlsx)
+        ->and(FileType::allowedExtensions())->toBe(['txt', 'csv', 'xlsx']);
 
     expect(fn () => FileType::fromExtension('pdf'))
         ->toThrow(UnsupportedFileType::class);
