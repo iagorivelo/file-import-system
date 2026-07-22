@@ -45,5 +45,8 @@ class DatabaseSeeder extends Seeder
 
         // Libera o programa "Teste" para o usuário comum de exemplo.
         $program->users()->syncWithoutDetaching([$commonUser->getKey()]);
+
+        // Biblioteca de templates de nicho (globais) para adoção pelas empresas.
+        $this->call(NicheTemplateSeeder::class);
     }
 }
