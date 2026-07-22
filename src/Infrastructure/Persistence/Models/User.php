@@ -6,14 +6,17 @@ namespace Src\Infrastructure\Persistence\Models;
 
 use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
+use Filament\Models\Contracts\HasTenants;
 use Filament\Panel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Src\Domain\User\UserRole;
 
 /**
@@ -25,7 +28,7 @@ use Src\Domain\User\UserRole;
  * @property bool $is_active
  * @property Carbon|null $last_seen_at
  */
-class User extends Authenticatable implements FilamentUser
+class User extends Authenticatable implements FilamentUser, HasTenants
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory;
@@ -81,6 +84,34 @@ class User extends Authenticatable implements FilamentUser
     public function isAdmin(): bool
     {
         return $this->role->isAdmin();
+    }
+
+    /**
+     * Empresas (tenants) às quais o usuário pertence.
+     *
+     * @return BelongsToMany<Company, $this>
+     */
+    public function companies(): BelongsToMany
+    {
+        return $this->belongsToMany(Company::class);
+    }
+
+    /**
+     * Tenants disponíveis para o usuário no painel (tenancy do Filament).
+     *
+     * @return Collection<int, Company>
+     */
+    public function getTenants(Panel $panel): Collection
+    {
+        return $this->companies;
+    }
+
+    /**
+     * Autoriza o usuário a operar dentro de uma empresa específica.
+     */
+    public function canAccessTenant(Model $tenant): bool
+    {
+        return $this->companies()->whereKey($tenant->getKey())->exists();
     }
 
     /**

@@ -36,6 +36,7 @@ class FileImport extends Model
     use HasFactory;
 
     protected $fillable = [
+        'company_id',
         'user_id',
         'program_id',
         'original_filename',
@@ -104,6 +105,14 @@ class FileImport extends Model
     public function hasErrors(): bool
     {
         return $this->status === ImportStatus::Failed || $this->failed_rows > 0;
+    }
+
+    /**
+     * @return BelongsTo<Company, $this>
+     */
+    public function company(): BelongsTo
+    {
+        return $this->belongsTo(Company::class);
     }
 
     /**

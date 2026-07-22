@@ -43,4 +43,17 @@ return [
     // Tamanho máximo do arquivo de importação, em kilobytes.
     'max_file_size_kb' => (int) env('IMPORTS_MAX_FILE_SIZE_KB', 51200),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Exportações (destino "arquivo de exportação")
+    |--------------------------------------------------------------------------
+    |
+    | Diretório onde o motor configurável grava os arquivos normalizados quando
+    | o destino do template é "arquivo de exportação".
+    |
+    */
+    'exports' => [
+        'directory' => storage_path('app/exports'),
+    ],
+
 ];
