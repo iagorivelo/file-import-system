@@ -13,12 +13,14 @@ enum FileType: string
 {
     case Txt = 'txt';
     case Csv = 'csv';
+    case Xlsx = 'xlsx';
 
     public function label(): string
     {
         return match ($this) {
             self::Txt => 'Texto (.txt)',
             self::Csv => 'CSV (.csv)',
+            self::Xlsx => 'Excel (.xlsx)',
         };
     }
 
@@ -32,7 +34,16 @@ enum FileType: string
         return match ($this) {
             self::Txt => ['text/plain'],
             self::Csv => ['text/csv', 'application/csv', 'text/plain'],
+            self::Xlsx => ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
         };
+    }
+
+    /**
+     * Indica se o tipo é lido como texto delimitado (CSV/TXT) por um parser de linha.
+     */
+    public function isDelimited(): bool
+    {
+        return $this === self::Txt || $this === self::Csv;
     }
 
     /**
