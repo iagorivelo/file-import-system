@@ -10,6 +10,6 @@ final class UnsupportedFileType extends RuntimeException
 {
     public static function for(string $type): self
     {
-        return new self("Tipo de arquivo não suportado: [{$type}]. Aceitos: .txt e .csv.");
+        return new self("Tipo de arquivo não suportado: [{$type}]. Aceitos: .txt, .csv e .xlsx.");
     }
 }
