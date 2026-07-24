@@ -4,17 +4,20 @@ namespace App\Filament\App\Pages;
 
 use BackedEnum;
 use Filament\Actions\Action;
+use Filament\Facades\Filament;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Support\Icons\Heroicon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Src\Application\Import\StartImport;
 use Src\Application\Import\StartImportData;
 use Src\Domain\Import\FileProcessor;
 use Src\Domain\Import\FileType;
+use Src\Infrastructure\Persistence\Models\Company;
 use Src\Infrastructure\Persistence\Models\FileImport;
 use Src\Infrastructure\Persistence\Models\Program;
 use Src\Infrastructure\Persistence\Models\User;
@@ -32,19 +35,21 @@ class Programs extends Page
     protected static ?string $slug = '/';
 
     /**
-     * Programas (boxes) ativos exibidos ao usuário.
+     * Programas (boxes) ativos exibidos ao usuário, escopados à empresa (tenant)
+     * atual.
      *
-     * Administradores enxergam todos os programas; usuários comuns, apenas os
-     * que o admin liberou para eles.
+     * Administradores enxergam todos os programas da empresa; usuários comuns,
+     * apenas os que o admin liberou para eles (também dentro da empresa).
      *
      * @return Collection<int, Program>
      */
     public function getPrograms(): Collection
     {
         $user = Auth::user();
+        $companyId = $this->currentCompanyId();
 
-        if (! $user instanceof User) {
-            return new Collection();
+        if (! $user instanceof User || $companyId === null) {
+            return new Collection;
         }
 
         $query = $user->isAdmin()
@@ -52,13 +57,14 @@ class Programs extends Page
             : $user->programs();
 
         return $query
+            ->where('company_id', $companyId)
             ->where('is_active', true)
             ->orderBy('name')
             ->get();
     }
 
     /**
-     * Importações recentes do usuário autenticado.
+     * Importações recentes do usuário autenticado, dentro da empresa atual.
      *
      * @return Collection<int, FileImport>
      */
@@ -66,10 +72,21 @@ class Programs extends Page
     {
         return FileImport::query()
             ->where('user_id', Auth::id())
+            ->when($this->currentCompanyId(), fn ($query, $companyId) => $query->where('company_id', $companyId))
             ->with('program')
             ->latest()
             ->limit(10)
             ->get();
+    }
+
+    /**
+     * ID da empresa (tenant) atual do painel, ou null fora de contexto de tenancy.
+     */
+    protected function currentCompanyId(): ?int
+    {
+        $tenant = Filament::getTenant();
+
+        return $tenant instanceof Company ? (int) $tenant->getKey() : null;
     }
 
     /**
@@ -127,11 +144,15 @@ class Programs extends Page
             })
             ->action(function (array $arguments, array $data): void {
                 $program = Program::query()->findOrFail($arguments['program']);
+                $companyId = $this->currentCompanyId();
 
                 // Defesa adicional: além das boxes já virem filtradas, garante
-                // que o usuário não importe para um programa sem permissão.
+                // que o usuário só importe para um programa que ele acessa E que
+                // pertence à empresa (tenant) atual.
                 $user = Auth::user();
-                if (! $user instanceof User || ! $user->canAccessProgram($program)) {
+                if (! $user instanceof User
+                    || ! $user->canAccessProgram($program)
+                    || $program->company_id !== $companyId) {
                     Notification::make()
                         ->title('Você não tem permissão para importar neste programa.')
                         ->danger()
@@ -157,6 +178,7 @@ class Programs extends Page
                     originalFilename: $originalName,
                     storedPath: $storedPath,
                     type: $type,
+                    companyId: $companyId,
                 ));
 
                 Notification::make()
@@ -182,6 +204,7 @@ class Programs extends Page
                     ->with('program')
                     ->whereKey($arguments['import'] ?? null)
                     ->where('user_id', Auth::id())
+                    ->when($this->currentCompanyId(), fn ($query, $companyId) => $query->where('company_id', $companyId))
                     ->first();
 
                 return view('filament.app.modals.import-details', [
@@ -198,7 +221,7 @@ class Programs extends Page
         $id = $arguments['program'] ?? null;
 
         return $id !== null
-            ? (string) Program::query()->whereKey($id)->value('name')
+            ? (string) $this->scopedPrograms()->whereKey($id)->value('name')
             : '';
     }
 
@@ -210,7 +233,7 @@ class Programs extends Page
      */
     protected function acceptedTypesFor(array $arguments): array
     {
-        $program = Program::query()->find($arguments['program'] ?? null);
+        $program = $this->scopedPrograms()->find($arguments['program'] ?? null);
         $processorClass = $program?->processor_class;
 
         if (is_string($processorClass) && is_subclass_of($processorClass, FileProcessor::class)) {
@@ -218,5 +241,16 @@ class Programs extends Page
         }
 
         return FileType::cases();
+    }
+
+    /**
+     * Consulta base de programas restrita à empresa (tenant) atual — evita que
+     * argumentos de ação (program id) vazem metadados de outra empresa.
+     *
+     * @return Builder<Program>
+     */
+    protected function scopedPrograms(): Builder
+    {
+        return Program::query()->where('company_id', $this->currentCompanyId());
     }
 }

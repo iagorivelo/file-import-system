@@ -19,6 +19,7 @@ final readonly class StartImport
     public function __invoke(StartImportData $data): FileImport
     {
         $import = FileImport::query()->create([
+            'company_id' => $data->companyId,
             'user_id' => $data->userId,
             'program_id' => $data->programId,
             'original_filename' => $data->originalFilename,
