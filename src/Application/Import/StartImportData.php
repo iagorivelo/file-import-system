@@ -8,6 +8,9 @@ use Src\Domain\Import\FileType;
 
 /**
  * Dados de entrada para iniciar uma importação.
+ *
+ * `companyId` é a empresa (tenant) dona da importação; nulo apenas em contextos
+ * sem tenancy (ex.: testes de pipeline puro).
  */
 final readonly class StartImportData
 {
@@ -17,5 +20,6 @@ final readonly class StartImportData
         public string $originalFilename,
         public string $storedPath,
         public FileType $type,
+        public ?int $companyId = null,
     ) {}
 }
