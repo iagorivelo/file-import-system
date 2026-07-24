@@ -23,6 +23,7 @@ use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Support\Str;
 use Src\Infrastructure\Persistence\Models\Company;
 
 class CompanyResource extends Resource
@@ -46,6 +47,11 @@ class CompanyResource extends Resource
                 ->label('Nome')
                 ->required()
                 ->maxLength(255),
+            TextInput::make('slug')
+                ->label('URL amigável (slug)')
+                ->maxLength(255)
+                ->helperText('Usada na URL do painel do usuário (ex.: /app/minha-empresa). Deixe vazio para gerar automaticamente a partir do nome.')
+                ->dehydrateStateUsing(fn (?string $state): ?string => filled($state) ? Str::slug($state) : null),
             TextInput::make('niche')
                 ->label('Nicho')
                 ->maxLength(255)
@@ -72,6 +78,12 @@ class CompanyResource extends Resource
                     ->label('Nome')
                     ->searchable()
                     ->sortable(),
+                TextColumn::make('slug')
+                    ->label('Slug')
+                    ->badge()
+                    ->color('gray')
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('niche')
                     ->label('Nicho')
                     ->badge()

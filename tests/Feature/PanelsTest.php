@@ -7,12 +7,12 @@ use Src\Infrastructure\Persistence\Models\Program;
 use Src\Infrastructure\Persistence\Models\User;
 
 /**
- * URL da página de programas escopada à empresa (tenant): /app/{tenant}. Sob
- * tenancy, o painel do usuário só existe dentro de uma empresa.
+ * URL da página de programas escopada à empresa (tenant): /app/{tenant}. O
+ * tenant é resolvido pelo slug da empresa (URL amigável), não pelo id.
  */
 function appHome(Company $company): string
 {
-    return '/app/'.$company->getKey();
+    return '/app/'.$company->getRouteKey();
 }
 
 it('redireciona a raiz para o login do painel do usuário', function () {
