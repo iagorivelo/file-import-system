@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use Src\Domain\User\UserRole;
 use Src\Infrastructure\Import\Processors\TesteProcessor;
+use Src\Infrastructure\Persistence\Models\Company;
 use Src\Infrastructure\Persistence\Models\Program;
 use Src\Infrastructure\Persistence\Models\User;
 
@@ -12,7 +13,7 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        User::query()->updateOrCreate(
+        $admin = User::query()->updateOrCreate(
             ['email' => 'admin@fileimport.local'],
             [
                 'name' => 'Administrador',
@@ -34,9 +35,18 @@ class DatabaseSeeder extends Seeder
             ],
         );
 
+        // Empresa (tenant) de exemplo; ambos os usuários pertencem a ela para
+        // conseguirem acessar o painel /app sob tenancy.
+        $company = Company::query()->updateOrCreate(
+            ['name' => 'Empresa Demo'],
+            ['niche' => 'generico', 'is_active' => true],
+        );
+        $company->users()->syncWithoutDetaching([$admin->getKey(), $commonUser->getKey()]);
+
         $program = Program::query()->updateOrCreate(
             ['name' => 'Teste'],
             [
+                'company_id' => $company->id,
                 'color' => '#4b6043',
                 'processor_class' => TesteProcessor::class,
                 'is_active' => true,

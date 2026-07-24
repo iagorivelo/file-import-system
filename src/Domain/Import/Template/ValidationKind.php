@@ -31,4 +31,18 @@ enum ValidationKind: string
             self::In => 'Um dos valores permitidos',
         };
     }
+
+    /**
+     * @return array<string, string> value => label
+     */
+    public static function options(): array
+    {
+        $options = [];
+
+        foreach (self::cases() as $case) {
+            $options[$case->value] = $case->label();
+        }
+
+        return $options;
+    }
 }
