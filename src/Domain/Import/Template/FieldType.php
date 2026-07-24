@@ -32,6 +32,20 @@ enum FieldType: string
     }
 
     /**
+     * @return array<string, string> value => label
+     */
+    public static function options(): array
+    {
+        $options = [];
+
+        foreach (self::cases() as $case) {
+            $options[$case->value] = $case->label();
+        }
+
+        return $options;
+    }
+
+    /**
      * Converte o valor (string já transformada) para o tipo de saída.
      *
      * A validação de correção é responsabilidade das {@see ValidationRule};
